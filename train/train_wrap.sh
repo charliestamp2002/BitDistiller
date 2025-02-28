@@ -1,0 +1,1 @@
+bash train.sh ../data/datasets/qwen2.5-1.5b/mix_wiki_alpaca_48.json ./ckpts/qwen2.5-1.5b/int2-g128/ ./logs/qwen2.5-1.5b/int2-g128/ 1

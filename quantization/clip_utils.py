@@ -114,10 +114,12 @@ def get_calib_dataset_gsm8k(tokenizer=None, n_samples=512, block_size=512):
 def get_blocks(model):
     if isinstance(model, LlamaForCausalLM):
         layers = model.model.layers
-    elif isinstance(model, OPTForCausalLM):
-        layers = model.model.decoder.layers
-    elif isinstance(model, BloomForCausalLM):
-        layers = model.transformer.h
+    elif "qwen" in str(model.__class__).lower():
+        layers = model.model.layers
+    # elif isinstance(model, OPTForCausalLM):
+    #     layers = model.model.decoder.layers
+    # elif isinstance(model, BloomForCausalLM):
+    #     layers = model.transformer.h
     elif "mpt" in str(model.__class__).lower():
         layers = model.transformer.blocks
     elif "falcon" in str(model.__class__).lower():
@@ -139,12 +141,14 @@ def append_str_prefix(x, prefix):
 def move_embed(model, device):
     if isinstance(model, LlamaForCausalLM):
         model.model.embed_tokens = model.model.embed_tokens.to(device)
-    elif isinstance(model, OPTForCausalLM):
-        model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.to(device)
-        model.model.decoder.embed_positions = model.model.decoder.embed_positions.to(device)
-    elif isinstance(model, BloomForCausalLM):
-        model.transformer.word_embeddings = model.transformer.word_embeddings.to(device)
-        model.transformer.word_embeddings_layernorm = model.transformer.word_embeddings_layernorm.to(device)
+    elif "qwen" in str(model.__class__).lower():
+        model.model.embed_tokens = model.model.embed_tokens.to(device)
+    # elif isinstance(model, OPTForCausalLM):
+    #     model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.to(device)
+    #     model.model.decoder.embed_positions = model.model.decoder.embed_positions.to(device)
+    # elif isinstance(model, BloomForCausalLM):
+    #     model.transformer.word_embeddings = model.transformer.word_embeddings.to(device)
+    #     model.transformer.word_embeddings_layernorm = model.transformer.word_embeddings_layernorm.to(device)
     elif "mpt" in str(model.__class__).lower():
         model.transformer.wte = model.transformer.wte.to(device)
         model.transformer.emb_drop = model.transformer.emb_drop.to(device)
