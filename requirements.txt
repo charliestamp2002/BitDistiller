@@ -23,4 +23,5 @@ bitsandbytes
 peft==0.8.0
 fraction
 
+ipykernel
 importlib_metadata
