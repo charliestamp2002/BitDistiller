@@ -1,4 +1,4 @@
-transformers==4.31.0
+transformers==4.37.0 # Qwen model breaks on earlier versions
 datasets
 deepspeed
 sentencepiece
@@ -20,5 +20,5 @@ tqdm-multiprocess
 zstandard
 
 bitsandbytes
-peft
+peft==0.8.0
 fraction
