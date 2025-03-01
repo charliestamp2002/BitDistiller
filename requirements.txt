@@ -22,3 +22,5 @@ zstandard
 bitsandbytes
 peft==0.8.0
 fraction
+
+importlib_metadata
