@@ -1,4 +1,4 @@
-export MODEL_PATH='/home/ubuntu/BitDistiller/quantization/models/Qwen2.5-1.5B/'
+export MODEL_PATH='/home/ubuntu/BitDistiller/models/Qwen2.5-1.5B/'
 export SAVE_PATH=$2
 export MASTER_ADDR="localhost"
 export MASTER_PORT="1321"
