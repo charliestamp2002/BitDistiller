@@ -1,9 +1,9 @@
-transformers==4.37.0 # Qwen model breaks on earlier versions
+transformers==4.31.0
 datasets
 deepspeed
 sentencepiece
 tensorboardX
-accelerate
+accelerate==0.28.0 # higher versions break transformers
 
 einops
 importlib-resources
@@ -20,8 +20,10 @@ tqdm-multiprocess
 zstandard
 
 bitsandbytes
-peft==0.8.0
+peft==0.8.0 # higher versions break transformers
 fraction
 
 ipykernel
-importlib_metadata
+importlib_metadata # missing library
+
+# vllm # for fast teacher generation
