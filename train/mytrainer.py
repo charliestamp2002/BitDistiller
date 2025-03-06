@@ -52,7 +52,7 @@ class KDTrainer(Trainer):
         forward_kl = F.kl_div(student_output_log_prob, teacher_output_soft, reduction="none").sum(-1)
 
         kl_loss = beta_prob * reverse_kl + (1 - beta_prob) * forward_kl
-        kl_loss *= mask
+        kl_loss *= mask   # both kl_loss/mask have shape [batch, sequence_len]
         kl_loss = kl_loss.sum(-1).mean()
         return kl_loss
 
