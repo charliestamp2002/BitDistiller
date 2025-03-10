@@ -5,7 +5,11 @@ import argparse
 import os
 import sys
 from clip_utils import *
-from quantizer import pseudo_quantize_tensor, pseudo_quantize_n2f3_tensor
+from quantizer import (
+    pseudo_quantize_tensor,
+    pseudo_quantize_tensor_1bit,
+    pseudo_quantize_n2f3_tensor,
+)
 from tqdm import tqdm
 from collections import defaultdict
 import functools
@@ -56,7 +60,10 @@ def auto_2clip_layer(w, input_feat, n_bit, q_config,
                 # min_val = - max_val
                 cur_w = torch.clamp(w, min_val, max_val)
                 if q_config["quant_type"] == "int":
-                    q_w = pseudo_quantize_tensor(cur_w, n_bit=n_bit, zero_point=True, q_group_size=q_config['q_group_size'])
+                    if n_bit == 1:
+                        q_w = pseudo_quantize_tensor_1bit(cur_w, zero_point=True, q_group_size=q_config['q_group_size'])
+                    else:
+                        q_w = pseudo_quantize_tensor(cur_w, n_bit=n_bit, zero_point=True, q_group_size=q_config['q_group_size'])
                 elif q_config["quant_type"] == "nf3":
                     q_w = pseudo_quantize_n2f3_tensor(cur_w, q_group_size=q_config['q_group_size'])
                 else:
