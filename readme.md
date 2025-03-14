@@ -72,8 +72,7 @@ With all steps, change the output paths (eg. for clipped weights, checkpoints) t
 the name of your experiment.
 
 ### Clipping
-Clips/quantises the teacher model (eg. TinyLlama_v1.1 below) to get initial weights for
-quantised student model. **Shouldn't need to be rerun unless a new teacher/quantisation method is used**. Initial weights stored in `--dump_clip` argument.
+Clips/quantises the teacher model (eg. TinyLlama_v1.1 below) to get initial weights for quantised student model. **Shouldn't need to be rerun unless using a new teacher/quantisation method**. Initial weights stored in `--dump_clip` argument.
 ```
 cd quantization
 
@@ -81,8 +80,7 @@ CUDA_VISIBLE_DEVICES=0 python autoclip.py --model_path ../models/TinyLlama_v1.1 
 ```
 
 ### Generate Teacher Data
-Generate the data for (distillation) training. **Shouldn't need to be rerun in general**, the
-file we will use for training is `data/datasets/tinyllama_v1.1/mix_wiki_alpaca_8000.json`.
+Generate the data for (distillation) training. **Shouldn't need to be rerun unless using a new teacher**. The main file we will use for training is `data/datasets/tinyllama_v1.1/mix_wiki_alpaca_8000.json`.
 ```
 cd data/generation
 
