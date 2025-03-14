@@ -38,11 +38,12 @@ If you haven't already done so on your local machine, do the steps [below](#gene
 #### Generate an ssh key
 ```
 eval "$(ssh-agent -s)" # start ssh agent, not automatic on vast
-ssh-keygen -t ed25519 -C
+ssh-keygen -t ed25519
 ssh-add; ssh-add -l
+echo "public key:"
 cat ~/.ssh/id_ed25519.pub
 ```
-Press enter when prompted for file name/passphrase to use defaults. Copy the entire contents of `cat` (including ssh-rsa and your email at the end) and add this to github under Settings > ssh keys.
+Press enter when prompted for file name/passphrase to use defaults. Copy the entire public key (including ssh-ed25519 and your email at the end) and add this to github under Settings > ssh keys.
 
 #### Logging into instance
 Add your local ssh key to your cloud GPU platform eg. Lambdalabs or vast.ai and create an instance with CUDA version 12.4. Login via vscode's remote ssh extension using 
