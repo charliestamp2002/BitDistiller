@@ -1,229 +1,5 @@
-# [ACL 2024] BitDistiller: Unleashing the Potential of Sub-4-Bit LLMs via Self-Distillation [[paper]](http://arxiv.org/abs/2402.10631)
-
-**Implementing efficient sub-4-bit weight quantization (3 / 2 bits) in LLMs through advanced QAT-based Self-Distillation techniques.**
-
-![overview](./imgs/overview.jpg)
-
-## Comparing general language tasks with other methods
-![overview](./imgs/result7b.jpg)
-<!-- ![overview](./imgs/result2.png)-->
-## Comparing reasoning benchmarks with other methods
-![overview](./imgs/result.png)
-
-## Example on 2-bit inference of a Domain-specific LLM (MetaMath)
-![gif](./imgs/Bitdistiller.gif)
-
-## News
-* [2024/05] 🔥 BitDistiller has been accepted to ACL main 2024! 
-
-
-## Contents
-1. [Setup](#1-setup)
-2. [Running](#2-running)
-3. [Evaluation](#3-evaluation)
-4. [Inferencce](#4-inference)
-
-## 1. Setup
-* python 3.9, pytorch >= 1.13
-* pip install -r requirement.txt 
-  
-  (You may need to change the version of transformers according to the model config)
-
-## 2. Running
-
-Our results is running by following 3 steps:
-
-### 2.1. Asymmetric Quantization
-* Determine the type of quantization: use `nf3` for 3 bits and `int` for 2 bits. Set `w_bit` and `quant_type` accordingly.
-
-* Perform clipping before training and save the clipping values using dump_clip (see `quantization/autoclip.py`).
-
->This step can match or surpass the low-bit PTQ quantization results of GPTQ and AWQ.
-
-### 2.2. Generating Teacher Data
-* For QAT, create data using the Teacher Model (BF16). The data varies depending on the model (see `data/generation`).
-
-
-### 2.3. KD-base QAT
-* Detailed procedure available in `train/`
-
-
-### Example Srcipts
-
-<details>
-  <summary>LLaMA-2</summary>
-  
-1. Get the Clipping result
-    ```bash
-    cd BitDistiller/quantization
-    ~ 8 min
-    CUDA_VISIBLE_DEVICES=0 python autoclip.py --model_path ../models/TinyLlama_v1.1 --calib_dataset pile --quant_type int --w_bit 2 --q_group_size 128 --run_clip --dump_clip ./clip_cache/TinyLlama_v1.1/int2-g128.pt
-    ```
-2. Get the Teacher Generation Data (Using vllm would be much faster)
-    ```bash
-    # vllm
-    python generate_vllm.py --base_model <model_path> --dataset_name wikitext --out_path ./datasets/hf-llama-2-7b/ --max_sample 3000
-
-    python generate_vllm.py --base_model <model_path> --dataset_name alpaca --out_path ./datasets/hf-llama-2-7b/ --max_sample 5000
-
-    # change to path in .py
-    python mix_data.py
-    ```
-
-    ```bash
-    # torchrun
-    cd BitDistiller/data/generation
-    ~ 1-2 min setup + 27s/size-16 batch
-    ~ 3hr25min to generate in total, ~1hr20min wikitext, 2hr5min alpaca
-    bash generate.sh ../../models/TinyLlama_v1.1 wikitext ../datasets/tinyllama_v1.1/ 16 3000
-
-    bash generate.sh ../../models/TinyLlama_v1.1 alpaca ../datasets/tinyllama_v1.1/ 16 5000
-
-    # change to path in .py
-    python mix_data.py
-    ```
-3. Run KD-base QAT
-    Estimate 1h 15 min per epoch which is pretty good, we could 
-    actually to afford to train for 4 epochs is we wanted to, though it may be best to keep it to 1-2.
-    ```bash
-    # Specify the pre-trained model path
-    # Specify the num_gpus and batch_size according to your GPU devices
-    # Specify the clipping cache path to the --clip
-
-    cd train
-    
-
-    bash train.sh ../data/datasets/tinyllama_v1.1/mix_wiki_alpaca_8000.json ./ckpts/tiny_llama_v1.1/int2-g128/ ./logs/tiny_llama_v1.1/int2-g128/ 4
-    ```
-</details>
-
-<details>
-  <summary>WizardCoder</summary>
-  
-1. Get the Clipping result
-    ```bash
-    cd BitDistiller/quantization
-
-    CUDA_VISIBLE_DEVICES=0 python autoclip.py --model_path <model_path> --calib_dataset code --quant_type int --w_bit 2 --q_group_size 128 --run_clip --dump_clip ./clip_cache/WizardCoder-7B/int2-g128.pt
-    ```
-2. Get the Teacher Generation Data
-    ```bash
-    # vllm
-    python generate_vllm.py --base_model <model_path> --dataset_name code --out_path ./datasets/WizardCoder-7b/ --max_sample 3000
-    ```
-
-    ```bash
-    cd BitDistiller/data/generation
-
-    bash generate.sh /root/WizardCoder-Python-7B/ code ../datasets/WizardCoder-7b/ 16 3000
-    ```
-3. Run KD-base QAT
-    ```bash
-    # Specify the pre-trained model path
-    # Specify the num_gpus and batch_size according to your GPU devices
-    # Specify the clipping cache path to the --clip
-
-    cd train
-    
-    bash train.sh ../data/datasets/WizardCoder-7b/code_T0.7_N1024_S42_3000.json ./ckpts/WizardCoder-7b/int2-g128/ ./logs/WizardCoder-7b/int2-g128/ 2
-    ```
-</details>
-
-<details>
-  <summary>MetaMath</summary>
-
-1. Get the Clipping result
-    ```bash
-    cd BitDistiller/quantization
-
-    CUDA_VISIBLE_DEVICES=0 python autoclip.py --model_path <model_path> --calib_dataset gsm8k --quant_type int --w_bit 2 --q_group_size 128 --run_clip --dump_clip ./clip_cache/MetaMath-7B/int2-g128.pt
-    ```
-2. Get the Teacher Generation Data
-    ```bash
-    # vllm
-    python generate_vllm.py --base_model <model_path> --dataset_name math --out_path ./datasets/MetaMath-7B/ --max_sample 3000
-    ```
-
-    ```bash
-    cd BitDistiller/data/generation
-
-    bash generate.sh /root/MetaMath-7B-V1.0/ math ../datasets/MetaMath-7B/ 16 3000
-    ```
-3. Run KD-base QAT
-    ```bash
-    # Specify the pre-trained model path
-    # Specify the num_gpus and batch_size according to your GPU devices
-    # Specify the clipping cache path to the --clip
-
-    cd train
-    
-    bash train.sh ../data/datasets/MetaMath-7B/math_T0.7_N1024_S42_3000.json ./ckpts/MetaMath-7b/int2-g128/ ./logs/MetaMath-7b/int2-g128/ 2
-    ```
-</details>
-
-## 3. Evaluation
-### Example Srcipts
-<details>
-  <summary>LLaMA-2</summary>
-
-
-
-* Test PPL on WikiText-2
-Works out of the box
-  ```bash
-  cd test/general
-
-  python wiki_ppl.py --model ../../train/ckpts/tiny_llama_v1.1/int2-g128/checkpoint-12/ --quant_type int --bits 2 --group_size 128
-  ```
-Needed to replace deprecated load_metric, 
-https://discuss.huggingface.co/t/cant-import-load-metric-from-datasets/107524
-* Test MMLU
-  ```bash
-  CUDA_VISIBLE_DEVICES=0 python llm_eval.py --model  ../../train/ckpts/tiny_llama_v1.1/int2-g128/checkpoint-12/ --eval_tasks hendrycksTest-* --test_set --bits 2 --group_size 128 --quant_type int --num_fewshot 5
-  ```
-* Test Common-sense QA Tasks
-
-hellaswag is hellaslow 10 min, 46355 iterations ~10 min
-all datasets work out of the box except arc_challenge,
-since it involves a subset of ai2_arc. Need to figure out
-how to just get the subset.
-  ```bash
-  CUDA_VISIBLE_DEVICES=0 python llm_eval.py --model ../../train/ckpts/tiny_llama_v1.1/int2-g128/checkpoint-12/  --eval_tasks arc_challenge,winogrande,hellaswag,piqa --test_set --bits 2 --group_size 128 --quant_type int --num_fewshot 0 
-  ```
-
-</details>
-
-<details>
-  <summary>WizardCoder</summary>
-
-* Install the environment according to the instructions of [HumanEval](https://github.com/openai/human-eval), 
-
-* Example script:
-    ```bash
-    cd test/humaneval
-    bash gen_preds.sh [checkpoint_path] ./preds/7b/int2-g128/
-    ```
-</details>
-
-<details>
-  <summary>MetaMath</summary>
-  
-* Example script:
-
-    ```bash
-    cd test/gsm8k
-    bash test.sh ../../train/ckpts/MetaMath-7b/int2-g128/ ./preds/7b/int2-g128/
-    ```
-</details>
-
-
-## 4. Inference
-Please see `inference/`
-
-
-
-## Reference
-If you find BitDistiller useful or relevant to your research, please kindly cite our paper:
+# BitDistiller-Extensions
+Forked from the BitDistiller [paper](http://arxiv.org/abs/2402.10631) repo https://github.com/DD-DuDa/BitDistiller.git. Please cite the original repo if you find this work interesting.
 ```
 @misc{du2024bitdistiller,
       title={BitDistiller: Unleashing the Potential of Sub-4-Bit LLMs via Self-Distillation}, 
@@ -234,3 +10,143 @@ If you find BitDistiller useful or relevant to your research, please kindly cite
       primaryClass={cs.CL}
 }
 ```
+This is a student project with the goal being to explore unanswered questions from the BitDistiller paper such as:
+- How does the approach do on smaller models (eg. TinyLlama 1.1B)?
+- Does this approach work for 1/1.58 bit quantisation?
+- How does the choice of teacher model affect performance?
+
+## Contents
+0. [Summary](#0-overall-workflow-summary)
+1. [Setup](#1-setup)
+2. [Pre-Training](#2-pre-training)
+3. [Training workflow](#3-training-workflow)
+4. [Eval](#4-eval)
+
+## 0. Overall Workflow Summary
+0. Create new branch, clone repo on a cloud GPU instance. 
+1. Run [Setup](#1-setup)
+2. Run [Pre-Training](#2-pre-training) if applicable
+3. Run [Training](#3-training-workflow) 
+4. Run [Eval](#4-eval)
+5. [Upload model](#5-sharing-the-model) to hf with metrics.
+6. **Delete instance!!**
+
+
+## 1. Setup
+### Logging into a cloud GPU with ssh 
+If you haven't already done so on your local machine, do the steps [below](#generate-an-ssh-key-and-add-it-to-github) so that you can clone, pull, push etc. locally.
+#### Generate an ssh key
+```
+eval "$(ssh-agent -s)" # start ssh agent, not automatic on vast
+ssh-keygen -t ed25519 -C
+ssh-add; ssh-add -l
+cat ~/.ssh/id_ed25519.pub
+```
+Press enter when prompted for file name/passphrase to use defaults. Copy the entire contents of `cat` (including ssh-rsa and your email at the end) and add this to github under Settings > ssh keys.
+
+#### Logging into instance
+Add your local ssh key to your cloud GPU platform eg. Lambdalabs or vast.ai and create an instance with CUDA version 12.4. Login via vscode's remote ssh extension using 
+```
+ssh -i ~/.ssh/id_ed25519 -p port user@address # (+optional port forwarding with -L)
+```
+eg. on vast
+```
+ssh -i ~/.ssh/id_ed25519 -p 30077 root@185.150.27.254 -L 8080:localhost:8080
+```
+
+#### Working on your instance
+Repeat the setps in [Generate an ssh key](#generate-an-ssh-key-and-add-it-to-github) on your **remote instance** and clone the repo.
+```
+git clone git@github.com:BrownianNotion/BitDistiller.git
+```
+
+### Setting up the python environment
+Run `./setup.sh` to setup env/install packages. Activate the venv with
+```
+source BitDistillerVenv/bin/activate
+```
+Note that for vast.ai, your repo will be under `/workspace/BitDistiller`.
+
+## 2. Pre-Training
+With all steps, change the output paths (eg. for clipped weights, checkpoints) to match
+the name of your experiment.
+
+### Clipping
+Clips/quantises the teacher model (eg. TinyLlama_v1.1 below) to get initial weights for
+quantised student model. **Shouldn't need to be rerun unless a new teacher/quantisation method is used**. Initial weights stored in `--dump_clip` argument.
+```
+cd quantization
+
+CUDA_VISIBLE_DEVICES=0 python autoclip.py --model_path ../models/TinyLlama_v1.1 --calib_dataset pile --quant_type int --w_bit 2 --q_group_size 128 --run_clip --dump_clip ./clip_cache/TinyLlama_v1.1/int2-g128.pt
+```
+
+### Generate Teacher Data
+Generate the data for (distillation) training. **Shouldn't need to be rerun in general**, the
+file we will use for training is `data/datasets/tinyllama_v1.1/mix_wiki_alpaca_8000.json`.
+```
+cd data/generation
+
+bash generate.sh ../../models/TinyLlama_v1.1 wikitext ../datasets/tinyllama_v1.1/ 16 3000
+bash generate.sh ../../models/TinyLlama_v1.1 alpaca ../datasets/tinyllama_v1.1/ 16 5000
+
+# change to path in .py
+python mix_data.py
+```
+
+## 3. Training workflow
+The model is by default trained on the dataset `mix_wiki_alpaca_8000.json`. Make sure to change the `bits`, `quant_type`, and `--clip` (initial clipped weights) path and any other training parameters needed in `train.sh`. If doing a dry-run, change the parameters in`train_dry_run.sh` instead. 
+
+### Summary of steps
+1. Commit **all** changes made by your experiment to a branch for reproducibility. This includes changes to `train.sh` and other configs other than dry run. 
+2. Rerun clipping/data generation if needed (see [Pre-Training](#2-pre-training)).
+3. In `train/`, change `train_dry_run.sh` if needed and run `./dry_sun.sh` to check that your code works. This does a single step on a small dataset of 64 samples.
+4. (Skip if on vast.ai) If dry run succeeds, create a new tmux session:
+```
+tmux new -s session_name
+```
+If your ssh connection ever drops, your training will keep running. You may need to reattach your session.
+```
+tmux attach -t session_name
+```
+5. Run the training command below. Once the model starts training, see [Monitoring](#monitoring) below for how to monitor training.
+```
+cd train
+bash train.sh ../data/datasets/tinyllama_v1.1/mix_wiki_alpaca_8000.json ./ckpts/tinyllama_v1.1/int2-g128/ ./ckpts/tinyllama_v1.1/int2-g128/runs/ 4
+```
+
+### Monitoring
+Run these commands in new terminals once actual training has started (i.e. you see two progress bars).
+```
+source BitDistillerVenv/bin/activate
+cd train
+
+# Nice dashboard of train/validation loss and other metrics. Eval metrics won't appear
+# until an eval step has happened - this may take a while.
+tensorboard --logdir=logs/tiny_llama_v1.1/int2-g128/ --port=8008
+
+# (In new terminal)
+# Shows GPU and GPU memory usage. This should be close to 100%/36.5GB for training.
+nvtop
+```
+
+Signs your training has gone wrong (to be expanded):
+* The loss curve isn't going down after a few steps
+
+## 4. Eval
+Our main benchmarks will be perplexity (PPL), QA datasets (arc_easy, arc_challenge, winogrande, hellasawg, piqa) and MMLU. For consistency, do not change `num_fewshot`. These benchmarks can be run as follows:
+```
+cd test/general
+
+# PPL
+python wiki_ppl.py --model ../../train/ckpts/tiny_llama_v1.1/int2-g128/checkpoint-12/ --quant_type int --bits 2 --group_size 128
+
+# QA
+CUDA_VISIBLE_DEVICES=0 python llm_eval.py --model ../../train/ckpts/tinyllama_v1.1/int2-g128/checkpoint-12/ --eval_tasks arc_easy,arc_challenge,winogrande,hellaswag,piqa --test_set --bits 2 --group_size 128 --quant_type int --num_fewshot 0 
+
+# MMLU
+CUDA_VISIBLE_DEVICES=0 python llm_eval.py --model  ../../train/ckpts/tinyllama_v1.1/int2-g128/checkpoint-12/ --eval_tasks hendrycksTest-* --test_set --bits 2 --group_size 128 --quant_type int --num_fewshot 5
+```
+
+## 5. Sharing the model
+Upload the model to hugging face and logs (which contain the files needed for the train/loss curves for tensorboard). This will help us easily share our work. This will be eventually automated, but for now do it manually and put in the metrics roughly according to this (there will be a yaml header on top of the `modelcard.md` where the metrics can be added).
+https://huggingface.co/BrownianNotion/TinyLlama_v1.1_mix_wikitext_alpaca_2bit_BitDistiller_baseline
