@@ -159,6 +159,8 @@ class SteInt3AsymQuantizer(nn.Module):
         super().__init__()
         self.q_group_size = q_group_size
         self.bit = 3
+        self.max_int = 2 ** self.bit - 1
+        self.min_int = 0
     def forward(self, x):
         org_w_shape = x.shape
 
@@ -172,16 +174,14 @@ class SteInt3AsymQuantizer(nn.Module):
 
         max_val = x.amax(dim=1, keepdim=True)
         min_val = x.amin(dim=1, keepdim=True)
-        max_int = 2 ** self.bit - 1
-        min_int = 0
-        scales = (max_val - min_val).clamp(min=1e-5) / max_int
-        zeros = (-torch.round(min_val / scales)).clamp_(min_int, max_int)
+        scales = (max_val - min_val).clamp(min=1e-5) / self.max_int
+        zeros = (-torch.round(min_val / scales)).clamp_(self.min_int, self.max_int)
 
         assert torch.isnan(scales).sum() == 0
         assert torch.isnan(x).sum() == 0
 
         x = (torch.clamp(Round.apply(x / scales) +
-                         zeros, min_int, max_int) - zeros) * scales
+                         zeros, self.min_int, self.max_int) - zeros) * scales
         assert torch.isnan(x).sum() == 0
 
         x = x.reshape(org_w_shape)
@@ -193,6 +193,8 @@ class SteInt2AsymQuantizer(nn.Module):
         super().__init__()
         self.q_group_size = q_group_size
         self.bit = 2
+        self.max_int = 2 ** self.bit - 1
+        self.min_int = 0
     def forward(self, x):
         org_w_shape = x.shape
 
@@ -203,16 +205,14 @@ class SteInt2AsymQuantizer(nn.Module):
 
         max_val = x.amax(dim=1, keepdim=True)
         min_val = x.amin(dim=1, keepdim=True)
-        max_int = 2 ** self.bit - 1
-        min_int = 0
-        scales = (max_val - min_val).clamp(min=1e-5) / max_int
-        zeros = (-torch.round(min_val / scales)).clamp_(min_int, max_int)
+        scales = (max_val - min_val).clamp(min=1e-5) / self.max_int
+        zeros = (-torch.round(min_val / scales)).clamp_(self.min_int, self.max_int)
 
         assert torch.isnan(scales).sum() == 0
         assert torch.isnan(x).sum() == 0
 
         x = (torch.clamp(Round.apply(x / scales) +
-                         zeros, min_int, max_int) - zeros) * scales
+                         zeros, self.min_int, self.max_int) - zeros) * scales
         assert torch.isnan(x).sum() == 0
 
         x = x.reshape(org_w_shape)
@@ -224,6 +224,8 @@ class SteInt1AsymQuantizer(nn.Module):
         super().__init__()
         self.q_group_size = q_group_size
         self.bit = 1
+        self.max_int = 1
+        self.min_int = 0
     def forward(self, x):
         # Save original shape for final reshape
         org_w_shape = x.shape
@@ -238,16 +240,10 @@ class SteInt1AsymQuantizer(nn.Module):
         max_val = x.amax(dim=1, keepdim=True)  # (num_groups, 1)
         min_val = x.amin(dim=1, keepdim=True)  # (num_groups, 1)
 
-        # Define the min and max integer values
-        # TODO: Move This Hardcoded Value somewhere so it's not
-        # repeated in inference time?
-        max_int = 2 ** self.bit - 1  # == 1
-        min_int = 0
-
         # Avoid zero denominator by clamping the scale
         scale = (max_val - min_val).clamp(min=1e-5)
         # zero_point is how we map min_val => 0 code, max_val => 1 code
-        zeros = (-torch.round(min_val / scale)).clamp_(min_int, max_int)
+        zeros = (-torch.round(min_val / scale)).clamp_(self.min_int, self.max_int)
 
         # Ensure we have no NaNs
         assert torch.isnan(scale).sum() == 0
@@ -256,7 +252,7 @@ class SteInt1AsymQuantizer(nn.Module):
         # Transform float -> integer in {0,1}
         # using Round STE, clamp to [0,1]
         x_int = torch.clamp(
-            Round.apply(x / scale) + zeros, min_int, max_int
+            Round.apply(x / scale) + zeros, self.min_int, self.max_int
         )
 
         # Transform integer -> float by removing zero_point, then scaling
