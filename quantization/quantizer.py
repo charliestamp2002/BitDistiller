@@ -73,7 +73,6 @@ def pseudo_quantize_tensor_1bit(w,
                            inplace=False,
                            get_scale_zp=False
                            ):
-    n_bit = 1
     org_w_shape = w.shape
     if q_group_size > 0:
         assert org_w_shape[-1] % q_group_size == 0
@@ -230,27 +229,23 @@ class SteInt1AsymQuantizer(nn.Module):
         # Save original shape for final reshape
         org_w_shape = x.shape
 
-        # Reshape so each row is one group if q_group_size > 0
+        # Reshape so each row is one group
         if self.q_group_size > 0:
-            assert org_w_shape[-1] % self.q_group_size == 0 # Last dimension must be divisible by q_group_size
+            assert org_w_shape[-1] % self.q_group_size == 0
             x = x.reshape(-1, self.q_group_size)
-        assert x.dim() == 2 # Tensor should be 2D after grouping
+        assert x.dim() == 2
 
-        # Compute the per-row min and max
         max_val = x.amax(dim=1, keepdim=True)  # (num_groups, 1)
         min_val = x.amin(dim=1, keepdim=True)  # (num_groups, 1)
 
-        # Avoid zero denominator by clamping the scale
         scale = (max_val - min_val).clamp(min=1e-5)
         # zero_point is how we map min_val => 0 code, max_val => 1 code
         zeros = (-torch.round(min_val / scale)).clamp_(self.min_int, self.max_int)
 
-        # Ensure we have no NaNs
+        # Double-check no NaNs introduced
         assert torch.isnan(scale).sum() == 0
         assert torch.isnan(x).sum() == 0
 
-        # Transform float -> integer in {0,1}
-        # using Round STE, clamp to [0,1]
         x_int = torch.clamp(
             Round.apply(x / scale) + zeros, self.min_int, self.max_int
         )
@@ -260,10 +255,7 @@ class SteInt1AsymQuantizer(nn.Module):
 
         # Double-check no NaNs introduced
         assert torch.isnan(x_q).sum() == 0
-
-        # Reshape back to the original weight shape
         x_q = x_q.reshape(org_w_shape)
-
         return x_q
 
 class SteN2F3Quantizer(nn.Module):

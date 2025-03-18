@@ -356,7 +356,7 @@ def train():
             device_map=device_map,
             max_memory=max_memory,
         )
-        teacher_model.eval()  # Set teacher model to evaluation mode
+        teacher_model.eval()
         teacher_model.cuda()
         for param in teacher_model.parameters():
             param.requires_grad = False  # Ensure teacher model parameters are frozen
