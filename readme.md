@@ -150,7 +150,7 @@ huggingface-cli whoami
 Make sure your tensorboard logs (`.events.out.tfevents.{...}`) are inside your `<model_path>` folder (hugging face will auto-generate a [metrics tabs](https://huggingface.co/docs/hub/en/tensorboard) to display the loss curves). 
 
 Run `upload_model.py`, specifying args `<model_path>`, `<bits>` and optionally
-`--quant_type, --extra_changes, --base_model, --ovewrite`. Run `upload_model.py -h` for help on the options. 
+`--quant_type, --extra_changes, --base_model, --ovewrite`. Run `upload_model.py -h` for help on the options. For <model_path>, we want the best model checkpoint, which can be found in the `best_model_checkpoint` field of `trainer_state.json`.
 
 This uploads the model to the hugging face repo `your_username/model_name`. Model name follows the convention
 *"{base_model}\_{num}bit\_{quantisation method}(\_{extra changes})"*.
