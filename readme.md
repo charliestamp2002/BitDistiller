@@ -172,7 +172,7 @@ bash generate_metrics.sh ../../train/ckpts/tinyllama_v1.1/int2-g128/checkpoint-1
 Then run `upload_metrics.py` to automatically upload the metrics to hugging face, specifying the path to the `metrics.json` and the hugging face model name without your
 user name.
 ```
-python upload_metrics.py --metrics_json ../../train/ckpts/tinyllama_v1.1/int2-g128/checkpoint-100 metrics.json --model_id 2-bit-baseline
+python upload_metrics.py --metrics_json ../../train/ckpts/tinyllama_v1.1/int2-g128/checkpoint-100/metrics.json --model_id 2-bit-baseline
 ```
 **Note**: this does not run MMLU by default as it is expensive. 
 
