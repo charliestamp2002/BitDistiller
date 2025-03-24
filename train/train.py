@@ -4,6 +4,7 @@ from qlinear import QLinear, convertModelToQuant
 from clip_utils import apply_clip
 
 import os
+import datetime
 import copy
 import logging
 from dataclasses import dataclass, field
@@ -24,7 +25,7 @@ from mytrainer import KDTrainer
 import random
 from tqdm import tqdm
 
-
+import wandb
 
 def _make_r_io_base(f, mode: str):
     if not isinstance(f, io.IOBase):
@@ -405,7 +406,24 @@ def train():
         mean_prob = mean_prob / dist.get_world_size()
         print(f"Get the coefficient: {mean_prob}")
 
-    # Initialize the Trainer with the appropriate settings
+    get_model_name = lambda path : os.path.basename(os.path.dirname(path))
+    student_name = get_model_name(model.config._name_or_path) 
+    teacher_name = get_model_name(teacher_model.config._name_or_path) 
+
+    wandb.init(
+        entity="DeepFriedNLP",
+        project="SNLP_BitDistiller",
+        dir=training_args.output_dir,
+        name=f"{student_name}_{training_args.bits}_{training_args.quant_type}_{datetime.datetime.now()}",
+        tags=[
+            f"{training_args.bits}bit", 
+            f"quant_type: {training_args.quant_type}",
+            f"student_model: {student_name}",
+            f"teacher_model: {teacher_name}"
+            ]
+    )
+
+    # Initialize the Trainer with the appropriate setting
     if training_args.train_kd:
         trainer = KDTrainer(
             model=model, 
@@ -434,6 +452,8 @@ def train():
     # clean up distributed
     if os.environ.get('LOCAL_RANK') is not None:
         torch.distributed.destroy_process_group()
+    
+    wandb.finish()
 
 if __name__ == "__main__":
     train()
